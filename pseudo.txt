@@ -1,0 +1,62 @@
+----------------------- Criar tabela de verificação------------------------ 
+1) Fazer tabela das verificações n*n i inicializar tudo a 0
+    1.1) Percorrer tabela, sabendo que cada "quadrado" corresponde a um par (x,y) 
+        1.1.1) Se x<=y
+                (x,y) -> -1
+
+---------------------- Verificar pares de estados finais------------------------------ 
+2) Percorrer transicoes (a1,a2,a3)
+    2.1) Se (i pertencer a F e f não pertencer a F) || (i não pertencer a F e f pertencer a F)
+        2.1.1) Na tabela de verificações marcar posicao (f,i) -> 1
+                    .
+                    .
+                    .
+                Repetir até preencher todas as transições que estejam em Fazer
+
+------------------------ Verificar restantes pares ----------------------------------
+3)  NºMudanças = 0
+    Enquanto número de células com valor 1 for diferente ao número anterior
+        NºMudanças anteriores = NºMudanças
+        Se par (x,y) = 0
+            (x,a)= P1
+            (y,a)= P2
+        Verificar na tabela de verificação se (P1,P2) = 1 || (P2,P1) =1
+            Sim?
+                (y,x)->1
+        Fazer  
+            (x,b)= P1
+            (y,b)= P2 
+        Verificar na tabela de verificação se (P1,P2) = 1 || (P2,P1) =1
+            Sim?
+                (y,x)->1
+        Passar  por todos os pares (x,y)=0
+        .
+        .
+        .
+        NºMudanças = Contar (x,y)=1
+
+------------------------- Preencher tabela de partições-----------------------------
+4)  cont = 1
+    Percorrer tabela de verificações
+        Se tabela.(0).(x) = 0 && tabela.(0).(y)<>0
+            tabela.(0).(x) <- tabela.(0).(y)
+        Se tabela.(0).(x) <> 0 && tabela.(0).(y)=0
+            tabela.(0).(y) <- tabela.(0).(x)
+        else
+            tabela.(0).(x) <- cont
+            tabela.(0).(y) <- cont
+            cont++
+        
+5) Percorrer tabela de verificações
+        cont = 1
+        Se (x,y)=1
+            Verificar na tabela de partições
+                Se x <> 1 então x -> cont+1
+                Se y <> 1 então y -> cont+1
+        .
+        .
+        .
+------------------------ Definir novos estados/Transições ------------------------------------
+6) Nºestados novos : Contar quantos valores >0 estão na tabela de partições
+7) Criar nova tabela de transições
+8) 

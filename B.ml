@@ -5,15 +5,7 @@ open Array
 (*--------------------------Leitura de dados---------------------------- *)
 let n = scanf " %d" (fun n -> n)                    (* Número de estados *)
 
-let card_so = scanf " %d" (fun card_so -> card_so)  (* Cardinalidade de estados iniciais *)  
-let rec leitura_so so card_so =                     (* Leitura dos estados iniciais*)
-   if card_so = 0 then
-    so
-  else
-    let x = scanf " %d" (fun x -> x) in
-    let so = so@[(x)] in
-   leitura_so so (card_so-1)
-let so = leitura_so [] card_so 
+let so = scanf " %d" (fun card_so -> card_so)  (* Cardinalidade de estados iniciais *)  
 
 let card_f = scanf " %d" (fun card_f -> card_f)     (* Cardinalidade de estados finais *)
 let rec leitura_f f card_f =                        (* Leitura dos estados finais *)     
@@ -36,30 +28,46 @@ let rec armazenar_transicoes transicoes card_trans = (* Armazenar Transições *
         armazenar_transicoes transicoes (card_trans-1) 
 else transicoes
 let transicoes = armazenar_transicoes transicoes card_trans
-
 (* -------------------------- Valores iniciais nas tabelas ---------------------------*)
 
-let tabela_transicoes = Array.make_matrix 2 n 0       (* Tabela de transições com 2 colunas (a,b) e n linhas *)
+let carac = []                                            (* Inicializar lista de caracteres *)
+
+let rec isCarac carac c=                                  (* Ver se caracter já está na lista *)                    
+  match carac with
+  | []->false
+  | v1::resto -> if v1=c then true else isCarac resto c
+
+let rec caracteres transicoes carac =                     (* Obter caracteres através das transições *)
+  match transicoes with
+  |[]->carac
+  |(a1,a2,a3)::resto-> if (isCarac carac a2 ) then caracteres resto carac else let carac = carac@[a2] in caracteres resto carac
+  let carac = caracteres transicoes carac
+
+let numcarac = (List.fold_left (fun acc _ -> acc + 1) 0 carac)  (* Nºcaracteres na lista *)
+(*let () = printf "Caracter = %c\n" (List.nth carac 1)*)
+let rec find x lst =                                    (* Descobrir posicao do caracter na lista*)
+  match lst with
+  | [] -> raise (Failure "Not Found")
+  | h :: t -> if x = h then 0 else 1 + find x t
+
+let tabela_transicoes = Array.make_matrix numcarac n 0       (* Tabela de transições com nºcolunas correspondentes ao nºcaracteres e n linhas *)
 let tabela_particoes = Array.make_matrix 1 n 0        (* Tabela de particoes com 1 coluna e n linhas *)
 let tabela_check = Array.make_matrix n n 0            (* Tabela onde se vai verificar pares de transições *)
 
-let rec colocar_tab_trans tabela transicoes =         (* Colocar transicoes na tabela*)
+let rec colocar_tab_trans tabela transicoes carac =         (* Colocar transicoes na tabela*)
     match transicoes with
     | [] -> tabela
     | (a1,a2,a3)::resto ->
-        if a2='a' then
-          let () = tabela.(0).(a1-1) <- a3 in colocar_tab_trans tabela resto     
-        else
-          let () = tabela.(1).(a1-1) <- a3 in colocar_tab_trans tabela resto      
-let tabela_transicoes = colocar_tab_trans tabela_transicoes transicoes
+          let () = tabela.((find a2 carac)).(a1-1) <- a3 in colocar_tab_trans tabela resto carac          
+let tabela_transicoes = colocar_tab_trans tabela_transicoes transicoes carac
 
-let nenhumdestino tabela =
-  for i=0 to 1 do
+let nenhumdestino tabela numcarac =
+  for i=0 to (numcarac-1) do
       for j=0 to (n-1) do
         if tabela.(i).(j)=0 then tabela.(i).(j)<-(-1)
       done
   done
-let () = nenhumdestino tabela_transicoes
+let () = nenhumdestino tabela_transicoes numcarac
 
 let () =                                              (* Colocar na tabela posições que não serão verificadas *)
     for x=0 to (n-1) do
@@ -105,14 +113,13 @@ let getposicaoprimeiro x tabela =     (* Obter posição do primeiro elemento da
       done in
     !pos
   
-let correspondencia x letra transicoes particoes =
+let correspondencia x letra transicoes particoes carac=
   let valor = ref 0 in
-  let pos= ref 0 in
-  if letra = ('b') then pos:= 1 ;
+  let pos = (find letra carac) in
     let () =
       for i=0 to (n-1) do
           if i=x then
-            let holder = transicoes.(!pos).(i) in
+            let holder = transicoes.(pos).(i) in
             if holder<>(-1) then
               if (valor=valor) then valor := particoes.(0).(holder-1) else ()
             else
@@ -131,7 +138,7 @@ let verificar_finais tabela f =   (* Verificar pares em que um é estado final e
   done
 let () = verificar_finais tabela_check f
 
-let variacoes tabela transicao = (* Verificar resto dos pares *)
+let variacoes tabela transicao carac numcarac = (* Verificar resto dos pares *)
   let () =
     let mudancas = ref 0 in
     let mudancas_anteriores = ref 1 in 
@@ -140,19 +147,21 @@ let variacoes tabela transicao = (* Verificar resto dos pares *)
         if (mudancas<>mudancas_anteriores) then mudancas:=0 else ();
         for i=0 to (n-1) do
             for j=0 to (n-1) do
+             
               if tabela.(i).(j)=0 then
-                let first = (ver_transicao j 'a' transicao) in (* y *)
-                let second = (ver_transicao i 'a' transicao) in (* x *)
-                let firstb = (ver_transicao j 'b' transicao) in (* y *)
-                let secondb = (ver_transicao i 'b' transicao) in (* x *)
-                if ((isVerificada tabela second first) || (isVerificada tabela secondb firstb)) then
-                  let () = tabela.(i).(j) <- 1 in
-                  if (mudancas=mudancas) then mudancas := (!mudancas + 1) else ()                 
+              
+                for k=0 to (numcarac-1) do
+                  let first = (ver_transicao j (List.nth carac k) transicao) in (* y *)
+                  let second = (ver_transicao i (List.nth carac k) transicao) in (* x *) 
+                  if ((isVerificada tabela second first) || (isVerificada tabela first second)) then
+                    let () = tabela.(i).(j) <- 1 in
+                    if (mudancas=mudancas) then mudancas := (!mudancas + 1) else ()  
+                done              
             done ;
         done 
       done in ()
 
-let () = variacoes tabela_check transicoes
+let () = variacoes tabela_check transicoes carac numcarac
 (*--------------------------------- Partições ------------------------------------------------ *)
 let tabela_particoes_aux = Array.make_matrix 1 n 0  (* Tabela de partições auxiliares*)
 
@@ -211,32 +220,28 @@ let particoes_restantes tabela particao auxiliar=        (* Obter partições qu
 let numeroparticoes = particoes_restantes tabela_check tabela_particoes tabela_particoes_aux
 
 (*---------------------------------Novos Estados---------------------------------------------- *)
-let novatabela_transicoes = Array.make_matrix 2 numeroparticoes 0
+let novatabela_transicoes = Array.make_matrix numcarac numeroparticoes 0
 (*let () = printf "Particao = %d\n" tabela_particoes.(0).(2)
 let () = printf "corresponde = %d\n" (correspondencia 2 'a' tabela_transicoes tabela_particoes)*)
 
-let contrucao_tabela nova particoes transicoes =
+let contrucao_tabela nova particoes transicoes carac numcarac =
   let pos = ref 0 in
   let cont = ref 1 in
   for i=0 to (n-1) do
-    if particoes.(0).(i)=(!cont) then
-      let () = nova.(0).(!pos) <- (correspondencia i 'a' transicoes particoes) in
-      let () = nova.(1).(!pos) <- (correspondencia i 'b' transicoes particoes) in
+    if particoes.(0).(i)=(!cont) then begin
+      for j=0 to (numcarac -1) do
+        nova.(j).(!pos) <- (correspondencia i (List.nth carac j) transicoes particoes carac) 
+      done;
       if (cont=cont) then cont := (!cont + 1) else ();
       if (pos=pos) then pos := (!pos + 1) else ()
+    end
   done
-let () = contrucao_tabela novatabela_transicoes tabela_particoes tabela_transicoes
+let () = contrucao_tabela novatabela_transicoes tabela_particoes tabela_transicoes carac numcarac
 
 (*---------------------------------Output-----------------------------------------------------*)
 let () = printf "%d\n" (numeroparticoes)
 
-let () = printf "%d\n" (List.fold_left (fun acc _ -> acc + 1) 0 so)
-
-let rec print_estados estado =
-  match estado with
-  | []->printf "\n"
-  | v1::resto -> let () = printf "%d " v1 in print_estados resto 
-let () = print_estados so 
+let () = printf "%d\n" (tabela_particoes.(0).(so-1))
 
 (*Cardinalidade Estados finais*)
 let card_novosestados tabela f numero =
@@ -256,45 +261,51 @@ let card_novosestados tabela f numero =
         let () = if (cont=cont) then cont := (!cont + 1) in () 
     done in
   (!num)
-let () = printf "%d\n" (card_novosestados tabela_particoes f numeroparticoes)
+let card_novos = card_novosestados tabela_particoes f numeroparticoes
+let () = printf "%d\n" card_novos
 (*Estados finais*)
-let printestadosfinais tabela f numero =
+let printestadosfinais tabela f numero card_f=
   let cont = ref 1 in
+  let total = ref 0 in
   while (!cont<>(numero+1)) do
       let cont_ant=(!cont) in
       for i=0 to (n-1) do
         if (tabela.(0).(i)=(!cont)) then
           if (final i f) then
-          let () = printf "%d" (!cont) in
-            if (cont=cont) then cont := (!cont + 1) else () ; 
+            if (!total = (card_f-1)) then
+              let () = printf "%d\n" (!cont) in
+              if (cont=cont) then cont := (!cont + 1) else () ; 
+            else
+              let () = printf "%d " (!cont) in
+              if (total=total) then total := (!total + 1) else () ; 
+              if (cont=cont) then cont := (!cont + 1) else () ; 
       done;
       if cont_ant=(!cont) then
         let () = if (cont=cont) then cont := (!cont + 1) in () 
   done
-let () = printestadosfinais tabela_particoes f numeroparticoes
-let () = printf "\n" 
+let () = printestadosfinais tabela_particoes f numeroparticoes card_novos
+
  
 (*NºTransições*)
-let numerotransicoes tabela =
+let numerotransicoes tabela numcarac=
   let num = ref 0 in
   let () =
     for i=0 to (numeroparticoes-1) do
-      for j=0 to 1 do
+      for j=0 to (numcarac-1) do
           if tabela.(j).(i)<>(-1) then num:=(!num +1)
       done
     done in
   (!num)
-let () = printf "%d\n" (numerotransicoes novatabela_transicoes)
+let () = printf "%d\n" (numerotransicoes novatabela_transicoes numcarac)
 (*Transições*)
-let printtransicoes tabela =
-  let letraa=('a') in
-  let letrab=('b') in
+let printtransicoes tabela num=
   for i=0 to (numeroparticoes-1) do
-      for j=0 to 1 do
-          if tabela.(j).(i)<>(-1) then printf "%d %c %d\n" (i+1) (if j=0 then letraa else letrab) (tabela.(j).(i))
+      for j=0 to (num-1) do
+          if tabela.(j).(i)<>(-1) then printf "%d %c %d\n" (i+1) (List.nth carac j) (tabela.(j).(i))
       done
     done 
-let () = printtransicoes novatabela_transicoes
+let () = printtransicoes novatabela_transicoes numcarac
+
 
 (*---------------------------------Auxiliares------------------------------------------------- *)
 (*
@@ -316,17 +327,23 @@ let () = print_tabelacheck tabela_check
 *)
 (* Funcões de leitura adicionais (para testes) *)
 (*
-let print_tabela tabela =
+let print_tabela tabela num=
   for i = 0 to (numeroparticoes-1) do
-    for j = 0 to 1 do
+    for j = 0 to (num-1) do
       let () = printf "%d " tabela.(j).(i) in ()
     done;
     let () = printf "\n" in ()
   done
-let () = print_tabela novatabela_transicoes *)
+let () = print_tabela novatabela_transicoes numcarac*)
 (*
 let print_particoes tabela =
   for i=0 to (n-1) do
     let () = printf "%d \n" tabela.(0).(i) in ()
   done
-let () = print_particoes tabela_particoes *)
+let () = print_particoes tabela_particoes 
+*)
+(*let rec print carac =
+    match carac with
+    |[]->printf "\n"
+    |a1::resto-> let () = printf "%c" a1 in print resto
+let () = print carac *)
